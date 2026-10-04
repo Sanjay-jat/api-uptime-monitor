@@ -6,4 +6,4 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
-*.egg-info/
+*.egg-info/.vscode/
