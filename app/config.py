@@ -7,6 +7,10 @@ class Settings(BaseSettings):
     database_url: str
     test_database_url: str
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    jwt_secret: str
+    jwt_algorithm: str = "HS256"
+    access_token_minutes: int = 15
+    refresh_token_days: int = 7
 
 
 @lru_cache
