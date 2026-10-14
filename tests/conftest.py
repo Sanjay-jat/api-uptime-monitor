@@ -23,6 +23,7 @@ async def engine() -> AsyncIterator[AsyncEngine]:
     assert url.endswith("_test"), "refusing to run tests on a non-test DB"
     eng = create_async_engine(url, poolclass=NullPool)
     async with eng.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     yield eng
     async with eng.begin() as conn:
