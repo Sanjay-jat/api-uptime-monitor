@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app.deps import DbSession
+from app.deps import CurrentUser, DbSession
 from app.models import User
 from app.schemas import Credentials, TokenOut, UserOut
 from app.security import create_access_token, hash_password, verify_password
@@ -38,3 +38,8 @@ async def login(body: Credentials, db: DbSession) -> TokenOut:
             status_code=401, detail="Invalid Credentials", headers={"WWW-Authenticate": "Bearer"}
         )
     return TokenOut(access_token=create_access_token(user.id))
+
+
+@router.get("/me", response_model=UserOut)
+async def me(current_user: CurrentUser) -> User:
+    return current_user
