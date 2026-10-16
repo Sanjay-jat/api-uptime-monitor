@@ -425,3 +425,26 @@ async def test_me_non_numeric_sub(client):
     )
 
     assert r.status_code == 401
+
+
+async def test_full_auth_flow(client):
+    tokens = await _login(client)
+
+    me = await client.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {tokens['access_token']}"},
+    )
+    assert me.status_code == 200
+
+    r = await _refresh(client, tokens["refresh_token"])
+    assert r.status_code == 200
+    new = r.json()
+
+    me = await client.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {new['access_token']}"},
+    )
+    assert me.status_code == 200
+
+    assert (await _logout(client, new["refresh_token"])).status_code == 204
+    assert (await _refresh(client, new["refresh_token"])).status_code == 401
