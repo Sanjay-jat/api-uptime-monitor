@@ -30,6 +30,10 @@ async def _refresh(client, token):
     return await client.post("/auth/refresh", json={"refresh_token": token})
 
 
+async def _logout(client, token):
+    return await client.post("/auth/logout", json={"refresh_token": token})
+
+
 async def test_register_ok(client):
     r = await client.post("/auth/register", json=PAYLOAD)
     assert r.status_code == 201
@@ -240,6 +244,59 @@ async def test_refresh_expired_token(client, engine):
 
 async def test_refresh_malformed_body(client):
     r = await client.post("/auth/refresh", json={})
+
+    assert r.status_code == 422
+
+
+async def test_logout_ok(client):
+    tokens = await _login(client)
+    r = await _logout(client, tokens["refresh_token"])
+
+    assert r.status_code == 204
+    assert r.content == b""
+
+
+async def test_logout_revokes_token(client):
+    tokens = await _login(client)
+    r = await _logout(client, tokens["refresh_token"])
+
+    assert r.status_code == 204
+    assert (await _refresh(client, tokens["refresh_token"])).status_code == 401
+
+
+async def test_logout_unknown_token(client):
+    r = await _logout(client, "garbage")
+
+    assert r.status_code == 204
+
+
+async def test_logout_twice_keeps_first_revoked_time(client, engine):
+    tokens = await _login(client)
+    assert (await _logout(client, tokens["refresh_token"])).status_code == 204
+
+    async with AsyncSession(engine) as s:
+        row = (await s.execute(select(RefreshToken))).scalar_one()
+        first_time = row.revoked_at
+
+    r = await _logout(client, tokens["refresh_token"])
+    assert r.status_code == 204
+
+    async with AsyncSession(engine) as s:
+        row = (await s.execute(select(RefreshToken))).scalar_one()
+
+    assert row.revoked_at == first_time
+
+
+async def test_logout_only_revokes_that_token(client):
+    first = await _login(client)
+    second = (await client.post("/auth/login", json=PAYLOAD)).json()
+
+    assert (await _logout(client, first["refresh_token"])).status_code == 204
+    assert (await _refresh(client, second["refresh_token"])).status_code == 200
+
+
+async def test_logout_malformed_body(client):
+    r = await client.post("/auth/logout", json={})
 
     assert r.status_code == 422
 
