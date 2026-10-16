@@ -88,3 +88,16 @@ async def refresh(body: RefreshIn, db: DbSession) -> TokenOut:
         raise invalid
     row.revoked_at = now
     return await _issue_tokens(db, row.user_id)
+
+
+@router.post("/logout", status_code=204)
+async def logout(body: RefreshIn, db: DbSession) -> None:
+    await db.execute(
+        update(RefreshToken)
+        .where(
+            RefreshToken.token_hash == hash_refresh_token(body.refresh_token),
+            RefreshToken.revoked_at.is_(None),
+        )
+        .values(revoked_at=datetime.now(timezone.utc))
+    )
+    await db.commit()
