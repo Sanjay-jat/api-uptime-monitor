@@ -3,6 +3,8 @@ import ipaddress
 import socket
 from urllib.parse import urlsplit
 
+DNS_TIMEOUT = 5.0
+
 
 class UnsafeURLError(ValueError):
     pass
@@ -35,8 +37,12 @@ async def validate_public_url(url: str) -> None:
     host = _get_host(url)
     loop = asyncio.get_running_loop()
     try:
-        infos = await loop.getaddrinfo(host, None, type=socket.SOCK_STREAM)
-    except (socket.gaierror, UnicodeError):
+        infos = await asyncio.wait_for(
+            loop.getaddrinfo(host, None, type=socket.SOCK_STREAM), timeout=DNS_TIMEOUT
+        )
+    except TimeoutError:
+        raise UnsafeURLError("cannot resolve host") from None
+    except socket.gaierror:
         raise UnsafeURLError("cannot resolve host") from None
     for info in infos:
         addr = info[4][0]
