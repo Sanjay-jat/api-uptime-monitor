@@ -30,6 +30,8 @@ class Endpoint(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    fail_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    status: Mapped[str] = mapped_column(String(8), default="up", server_default="up")
 
 
 class RefreshToken(Base):
