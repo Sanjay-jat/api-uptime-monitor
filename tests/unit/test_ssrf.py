@@ -6,6 +6,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+from app import ssrf
 from app.ssrf import UnsafeURLError, _get_host, _is_blocked, validate_public_url
 
 BAD_URLS = [
@@ -188,3 +189,24 @@ def test_get_host_only_raises_unsafe_url_error(s):
         _get_host(s)
     except UnsafeURLError:
         pass
+
+
+async def test_dns_timeout_is_unsafe(monkeypatch):
+    async def slow(*args, **kwargs):
+        await asyncio.sleep(10)
+
+    loop = asyncio.get_running_loop()
+    monkeypatch.setattr(loop, "getaddrinfo", slow)
+    monkeypatch.setattr(ssrf, "DNS_TIMEOUT", 0.01)
+    with pytest.raises(UnsafeURLError, match="cannot resolve host"):
+        await validate_public_url("https://example.com")
+
+
+async def test_dns_failure_is_unsafe(monkeypatch):
+    async def boom(*args, **kwargs):
+        raise socket.gaierror("no such host")
+
+    loop = asyncio.get_running_loop()
+    monkeypatch.setattr(loop, "getaddrinfo", boom)
+    with pytest.raises(UnsafeURLError, match="cannot resolve host"):
+        await validate_public_url("https://example.com")
