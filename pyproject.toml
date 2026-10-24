@@ -13,10 +13,12 @@ dependencies = [
   "asyncpg",
   "alembic",
   "pydantic-settings",
+  "PyJWT>=2.8",
+  "bcrypt>=4.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio", "pytest-cov", "httpx", "ruff", "respx>=0.21"]
+dev = ["pytest", "pytest-asyncio", "pytest-cov", "httpx", "ruff", "respx>=0.21", "hypothesis"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
