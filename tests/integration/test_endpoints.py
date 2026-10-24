@@ -1,4 +1,6 @@
+import asyncio
 import socket
+from types import SimpleNamespace
 
 import pytest
 
@@ -210,3 +212,47 @@ async def test_delete_other_users_endpoint_is_404_and_kept(client, public_dns):
     r = await client.delete(f"/endpoints/{ep['id']}", headers=hb)
     assert r.status_code == 404
     assert (await client.get(f"/endpoints/{ep['id']}", headers=ha)).status_code == 200
+
+
+@pytest.fixture
+def cap_2(monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.endpoints.get_settings",
+        lambda: SimpleNamespace(max_endpoints_per_user=2),
+    )
+
+
+async def test_create_over_limit_is_403(client, public_dns, cap_2):
+    h = await make_user(client, "a@example.com")
+    await create_ep(client, h)
+    await create_ep(client, h)
+    r = await client.post("/endpoints", json=BODY, headers=h)
+    assert r.status_code == 403
+    assert "2" in r.json()["detail"]
+    assert len((await client.get("/endpoints", headers=h)).json()) == 2
+
+
+async def test_limit_is_per_user(client, public_dns, cap_2):
+    ha = await make_user(client, "a@example.com")
+    hb = await make_user(client, "b@example.com")
+    await create_ep(client, ha)
+    await create_ep(client, ha)
+    await create_ep(client, hb)
+
+
+async def test_delete_frees_a_slot(client, public_dns, cap_2):
+    h = await make_user(client, "a@example.com")
+    first = await create_ep(client, h)
+    await create_ep(client, h)
+    assert (await client.delete(f"/endpoints/{first['id']}", headers=h)).status_code == 204
+    await create_ep(client, h)
+
+
+async def test_parallel_creates_cannot_exceed_limit(client, public_dns, cap_2):
+    h = await make_user(client, "a@example.com")
+    results = await asyncio.gather(
+        *[client.post("/endpoints", json=BODY, headers=h) for _ in range(6)]
+    )
+    codes = sorted(r.status_code for r in results)
+    assert codes == [201, 201, 403, 403, 403, 403]
+    assert len((await client.get("/endpoints", headers=h)).json()) == 2
