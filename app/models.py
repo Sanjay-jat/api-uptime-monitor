@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, func, true
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, func, true
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -40,3 +40,16 @@ class RefreshToken(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PingResult(Base):
+    __tablename__ = "ping_results"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    endpoint_id: Mapped[int] = mapped_column(ForeignKey("endpoints.id", ondelete="CASCADE"))
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    ok: Mapped[bool] = mapped_column(Boolean)
+    status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    response_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    __table_args__ = (Index("ix_ping_results_endpoint_checked", "endpoint_id", "checked_at"),)
