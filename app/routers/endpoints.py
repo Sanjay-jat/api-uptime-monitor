@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.deps import CurrentUser, DbSession
-from app.models import Endpoint
+from app.models import Endpoint, User
 from app.schemas import EndpointCreate, EndpointOut, EndpointUpdate
 from app.ssrf import UnsafeURLError, validate_public_url
 
@@ -26,6 +27,15 @@ async def create_endpoint(body: EndpointCreate, db: DbSession, user: CurrentUser
         await validate_public_url(body.url)
     except UnsafeURLError as e:
         raise HTTPException(status_code=422, detail=str(e)) from None
+    await db.execute(select(User.id).where(User.id == user.id).with_for_update())
+    count = await db.scalar(
+        select(func.count()).select_from(Endpoint).where(Endpoint.user_id == user.id)
+    )
+    limit = get_settings().max_endpoints_per_user
+    if count >= limit:
+        raise HTTPException(
+            status_code=403, detail=f"User has reached the maximum number of endpoints ({limit})"
+        )
     ep = Endpoint(user_id=user.id, **body.model_dump(exclude_none=True))
     db.add(ep)
     await db.commit()
