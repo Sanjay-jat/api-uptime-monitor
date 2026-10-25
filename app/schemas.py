@@ -89,3 +89,20 @@ class EndpointOut(BaseModel):
     is_active: bool
     next_check_at: datetime
     created_at: datetime
+
+
+class WebhookIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    url: str = Field(max_length=2048)
+
+    @field_validator("url")
+    @classmethod
+    def check_url(cls, v: str) -> str:
+        _get_host(v)
+        return v
+
+
+class WebhookOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    webhook_url: str
+    webhook_secret: str
