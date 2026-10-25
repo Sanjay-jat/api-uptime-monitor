@@ -1,4 +1,5 @@
 import asyncio
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException
@@ -9,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.deps import CurrentUser, DbSession
 from app.models import RefreshToken, User
-from app.schemas import Credentials, RefreshIn, TokenOut, UserOut
+from app.schemas import Credentials, RefreshIn, TokenOut, UserOut, WebhookIn, WebhookOut
 from app.security import (
     create_access_token,
     generate_refresh_token,
@@ -17,6 +18,7 @@ from app.security import (
     hash_refresh_token,
     verify_password,
 )
+from app.ssrf import UnsafeURLError, validate_public_url
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -100,4 +102,23 @@ async def logout(body: RefreshIn, db: DbSession) -> None:
         )
         .values(revoked_at=datetime.now(timezone.utc))
     )
+    await db.commit()
+
+
+@router.put("/me/webhook", response_model=WebhookOut)
+async def set_webhook(body: WebhookIn, user: CurrentUser, db: DbSession):
+    try:
+        await validate_public_url(body.url)
+    except UnsafeURLError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from None
+    user.webhook_url = body.url
+    user.webhook_secret = secrets.token_urlsafe(32)
+    await db.commit()
+    return user
+
+
+@router.delete("/me/webhook", status_code=204)
+async def delete_webhook(user: CurrentUser, db: DbSession) -> None:
+    user.webhook_url = None
+    user.webhook_secret = None
     await db.commit()
