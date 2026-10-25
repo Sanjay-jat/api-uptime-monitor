@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, func, true
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, func, text, true
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -14,6 +14,8 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    webhook_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    webhook_secret: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 class Endpoint(Base):
@@ -55,3 +57,22 @@ class PingResult(Base):
     error: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     __table_args__ = (Index("ix_ping_results_endpoint_checked", "endpoint_id", "checked_at"),)
+
+
+class Incident(Base):
+    __tablename__ = "incidents"
+    __table_args__ = (
+        Index(
+            "uq_incidents_one_open",
+            "endpoint_id",
+            unique=True,
+            postgresql_where=text("resolved_at IS NULL"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    endpoint_id: Mapped[int] = mapped_column(
+        ForeignKey("endpoints.id", ondelete="CASCADE"), index=True
+    )
+    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
