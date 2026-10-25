@@ -5,10 +5,11 @@ import random
 from datetime import UTC, datetime, timedelta
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.models import Endpoint, PingResult
+from app.alerts import build_body, send_webhook
+from app.models import Endpoint, Incident, PingResult, User
 from app.monitor import Event, Status, next_state, ping
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,15 @@ async def check_endpoint(
     ep.fail_count = state.fail_count
     ep.status = state.status
     ep.next_check_at = now + timedelta(seconds=ep.interval_seconds * random.uniform(1.0, 1.1))
+    event = state.event
+    if event == Event.WENT_DOWN:
+        session.add(Incident(endpoint_id=ep.id, opened_at=now))
+    elif event == Event.RECOVERED:
+        await session.execute(
+            update(Incident)
+            .where(Incident.endpoint_id == ep.id, Incident.resolved_at.is_(None))
+            .values(resolved_at=now)
+        )
     await session.commit()
     return state.event
 
@@ -66,7 +76,8 @@ async def _check_one(
                 ep = await session.get(Endpoint, ep_id)
                 if ep is None or not ep.is_active:
                     return
-                await check_endpoint(session, client, ep, now, threshold)
+                event = await check_endpoint(session, client, ep, now, threshold)
+                await _alert(session, client, ep, event, now)
         except Exception:
             logger.exception("check failed for endpoint %s", ep_id)
 
@@ -100,3 +111,19 @@ async def run_scheduler(
             logger.exception("tick failed")
         with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(stop.wait(), timeout=tick_seconds)
+
+
+async def _alert(
+    session: AsyncSession,
+    client: httpx.AsyncClient,
+    ep: Endpoint,
+    event: Event,
+    now: datetime,
+) -> None:
+    if event not in (Event.WENT_DOWN, Event.RECOVERED):
+        return
+    user = await session.get(User, ep.user_id)
+    if user is None or not user.webhook_url or not user.webhook_secret:
+        return
+    body = build_body(event, ep.id, ep.url, now)
+    await send_webhook(client, user.webhook_url, user.webhook_secret, body)
