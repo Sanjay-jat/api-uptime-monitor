@@ -1,7 +1,8 @@
 import asyncio
+import contextlib
 import logging
 import random
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import httpx
 from sqlalchemy import select
@@ -83,3 +84,19 @@ async def run_tick(
     await asyncio.gather(
         *(_check_one(session_factory, client, e.id, now, threshold, sem) for e in due)
     )
+
+
+async def run_scheduler(
+    session_factory: async_sessionmaker[AsyncSession],
+    client: httpx.AsyncClient,
+    stop: asyncio.Event,
+    tick_seconds: float = 1.0,
+    threshold: int = 3,
+) -> None:
+    while not stop.is_set():
+        try:
+            await run_tick(session_factory, client, datetime.now(UTC), threshold)
+        except Exception:
+            logger.exception("tick failed")
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(stop.wait(), timeout=tick_seconds)
