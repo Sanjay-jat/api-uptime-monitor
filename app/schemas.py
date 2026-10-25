@@ -106,3 +106,12 @@ class WebhookOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     webhook_url: str
     webhook_secret: str
+
+
+class PingOut(BaseModel):
+    checked_at: datetime
+    ok: bool
+    status_code: int | None
+    response_ms: int | None
+    error: str | None
+    model_config = ConfigDict(from_attributes=True)
