@@ -8,9 +8,11 @@ import httpx
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app import cache
 from app.alerts import build_body, send_webhook
 from app.models import Endpoint, Incident, PingResult, User
 from app.monitor import Event, Status, next_state, ping
+from app.ws import manager
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +60,18 @@ async def check_endpoint(
             .where(Incident.endpoint_id == ep.id, Incident.resolved_at.is_(None))
             .values(resolved_at=now)
         )
+    user_id = ep.user_id
+    payload = {
+        "endpoint_id": ep.id,
+        "status": state.status.value,
+        "ok": result.ok,
+        "status_code": result.status_code,
+        "response_ms": result.response_ms,
+        "checked_at": now.isoformat(),
+    }
     await session.commit()
+    cache.set_status(user_id, ep.id, payload)
+    await manager.broadcast(user_id, {"type": "update", "data": payload})
     return state.event
 
 
