@@ -7,7 +7,7 @@ import httpx
 from fastapi import FastAPI
 
 from app.db import SessionLocal, engine
-from app.routers import auth, endpoints, history
+from app.routers import auth, dashboard, endpoints, history
 from app.scheduler import run_scheduler
 
 logger = logging.getLogger(__name__)
@@ -34,6 +34,7 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(auth.router)
 app.include_router(endpoints.router)
 app.include_router(history.router)
+app.include_router(dashboard.router)
 
 
 @app.get("/health")
