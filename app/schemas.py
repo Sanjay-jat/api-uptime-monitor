@@ -121,3 +121,9 @@ class UptimeOut(BaseModel):
     window: Literal["24h", "7d", "30d"]
     uptime_percent: float | None
     total_checks: int
+
+
+class IncidentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    opened_at: datetime
+    resolved_at: datetime | None
