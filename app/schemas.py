@@ -115,3 +115,9 @@ class PingOut(BaseModel):
     response_ms: int | None
     error: str | None
     model_config = ConfigDict(from_attributes=True)
+
+
+class UptimeOut(BaseModel):
+    window: Literal["24h", "7d", "30d"]
+    uptime_percent: float | None
+    total_checks: int
