@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import cache
 from app.config import get_settings
 from app.deps import CurrentUser, DbSession
 from app.models import Endpoint, User
@@ -76,3 +77,4 @@ async def delete_endpoint(endpoint_id: int, db: DbSession, user: CurrentUser):
     ep = await _get_owned(db, user.id, endpoint_id)
     await db.delete(ep)
     await db.commit()
+    cache.remove(user.id, endpoint_id)
