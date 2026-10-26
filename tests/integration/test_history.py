@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from app.models import PingResult
+from app.models import Incident, PingResult
 
 
 @pytest.fixture
@@ -204,3 +204,99 @@ async def test_uptime_other_user_404_same_as_missing(client, engine, public_dns)
 
 async def test_uptime_requires_auth(client, public_dns):
     assert (await client.get("/endpoints/1/uptime")).status_code == 401
+
+
+async def _add_incident(engine, endpoint_id, age, duration=None):
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    opened = datetime.now(UTC) - age
+    async with factory() as s:
+        s.add(
+            Incident(
+                endpoint_id=endpoint_id,
+                opened_at=opened,
+                resolved_at=opened + duration if duration else None,
+            )
+        )
+        await s.commit()
+
+
+async def test_incidents_empty(client, public_dns):
+    h = await _auth(client, "a@example.com")
+    eid = await _make_endpoint(client, h)
+    r = await client.get(f"/endpoints/{eid}/incidents", headers=h)
+    assert r.status_code == 200
+    assert r.json() == []
+
+
+async def test_incidents_newest_first_open_is_null(client, engine, public_dns):
+    h = await _auth(client, "a@example.com")
+    eid = await _make_endpoint(client, h)
+    await _add_incident(engine, eid, timedelta(hours=3), timedelta(minutes=10))
+    await _add_incident(engine, eid, timedelta(hours=2), timedelta(minutes=10))
+    await _add_incident(engine, eid, timedelta(hours=1))  # abhi tak open
+    body = (await client.get(f"/endpoints/{eid}/incidents", headers=h)).json()
+    assert len(body) == 3
+    opened = [i["opened_at"] for i in body]
+    assert opened == sorted(opened, reverse=True)
+    assert set(body[0]) == {"opened_at", "resolved_at"}
+    assert body[0]["resolved_at"] is None
+    assert body[1]["resolved_at"] is not None
+
+
+async def test_incidents_pagination_covers_everything(client, engine, public_dns):
+    h = await _auth(client, "a@example.com")
+    eid = await _make_endpoint(client, h)
+    for hours in range(1, 6):
+        await _add_incident(engine, eid, timedelta(hours=hours), timedelta(minutes=5))
+    url = f"/endpoints/{eid}/incidents"
+    full = (await client.get(url, headers=h)).json()
+    p1 = (await client.get(url, params={"limit": 2, "offset": 0}, headers=h)).json()
+    p2 = (await client.get(url, params={"limit": 2, "offset": 2}, headers=h)).json()
+    p3 = (await client.get(url, params={"limit": 2, "offset": 4}, headers=h)).json()
+    assert [len(p1), len(p2), len(p3)] == [2, 2, 1]
+    assert p1 + p2 + p3 == full
+
+
+@pytest.mark.parametrize("query", ["limit=0", "limit=201", "offset=-1"])
+async def test_incidents_bounds_rejected(client, public_dns, query):
+    h = await _auth(client, "a@example.com")
+    eid = await _make_endpoint(client, h)
+    r = await client.get(f"/endpoints/{eid}/incidents?{query}", headers=h)
+    assert r.status_code == 422
+
+
+async def test_incidents_only_that_endpoint(client, engine, public_dns):
+    h = await _auth(client, "a@example.com")
+    e1 = await _make_endpoint(client, h)
+    e2 = await _make_endpoint(client, h)
+    await _add_incident(engine, e1, timedelta(hours=1))
+    r = await client.get(f"/endpoints/{e2}/incidents", headers=h)
+    assert r.json() == []
+
+
+async def test_incidents_other_user_404_same_as_missing(client, engine, public_dns):
+    ha = await _auth(client, "a@example.com")
+    hb = await _auth(client, "b@example.com")
+    eid = await _make_endpoint(client, ha)
+    await _add_incident(engine, eid, timedelta(hours=1))
+    theirs = await client.get(f"/endpoints/{eid}/incidents", headers=hb)
+    missing = await client.get("/endpoints/999999/incidents", headers=hb)
+    assert theirs.status_code == missing.status_code == 404
+    assert theirs.json() == missing.json()
+
+
+async def test_incidents_requires_auth(client, public_dns):
+    assert (await client.get("/endpoints/1/incidents")).status_code == 401
+
+
+async def test_timestamps_are_utc_aware(client, engine, public_dns):
+    h = await _auth(client, "a@example.com")
+    eid = await _make_endpoint(client, h)
+    await _add_pings(engine, eid, 1)
+    await _add_incident(engine, eid, timedelta(hours=1))
+    ping = (await client.get(f"/endpoints/{eid}/pings", headers=h)).json()[0]
+    inc = (await client.get(f"/endpoints/{eid}/incidents", headers=h)).json()[0]
+    for value in (ping["checked_at"], inc["opened_at"]):
+        parsed = datetime.fromisoformat(value)
+        assert parsed.tzinfo is not None
+        assert parsed.utcoffset() == timedelta(0)
