@@ -5,9 +5,9 @@ from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
 from app.deps import CurrentUser, DbSession
-from app.models import PingResult
+from app.models import Incident, PingResult
 from app.routers.endpoints import _get_owned
-from app.schemas import PingOut, UptimeOut
+from app.schemas import IncidentOut, PingOut, UptimeOut
 
 router = APIRouter(prefix="/endpoints", tags=["history"])
 
@@ -59,3 +59,22 @@ async def get_uptime(
     )
     total, ok = (await db.execute(stmt)).one()
     return UptimeOut(window=window, uptime_percent=uptime_percent(ok, total), total_checks=total)
+
+
+@router.get("/{endpoint_id}/incidents", response_model=list[IncidentOut])
+async def list_incidents(
+    endpoint_id: int,
+    user: CurrentUser,
+    db: DbSession,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
+    await _get_owned(db, user.id, endpoint_id)  # 404 agar nahi mila
+    stmt = (
+        select(Incident)
+        .where(Incident.endpoint_id == endpoint_id)
+        .order_by(Incident.opened_at.desc(), Incident.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    return (await db.scalars(stmt)).all()
