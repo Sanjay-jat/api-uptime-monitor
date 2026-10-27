@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     access_token_minutes: int = 15
     refresh_token_days: int = 7
     max_endpoints_per_user: int = 10
+    cors_origins: list[str] = []
 
 
 @lru_cache
