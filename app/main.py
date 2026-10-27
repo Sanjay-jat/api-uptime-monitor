@@ -18,7 +18,7 @@ from app.routers import auth, dashboard, endpoints, history
 from app.scheduler import run_scheduler
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
-
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
