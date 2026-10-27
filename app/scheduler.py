@@ -5,7 +5,7 @@ import random
 from datetime import UTC, datetime, timedelta
 
 import httpx
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app import cache
@@ -140,3 +140,17 @@ async def _alert(
         return
     body = build_body(event, ep.id, ep.url, now)
     await send_webhook(client, user.webhook_url, user.webhook_secret, body)
+
+
+# shortcut: filter on checked_at alone skips the (endpoint_id, checked_at) index, full scan once a day; add index if table grows past millions
+async def purge_old_pings(session, now: datetime, days: int, batch: int = 1000) -> int:
+    cutoff = now - timedelta(days=days)
+    total = 0
+    while True:
+        ids = select(PingResult.id).where(PingResult.checked_at < cutoff).limit(batch)
+        result = await session.execute(delete(PingResult).where(PingResult.id.in_(ids)))
+        await session.commit()
+        total += result.rowcount
+        if result.rowcount < batch:
+            break
+    return total
