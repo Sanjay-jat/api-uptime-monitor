@@ -1,3 +1,6 @@
+import os
+
+os.environ.setdefault("CORS_ORIGINS", '["http://localhost:3000"]')
 from collections.abc import AsyncIterator
 
 import pytest
