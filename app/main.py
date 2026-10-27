@@ -10,8 +10,11 @@ from slowapi.errors import RateLimitExceeded
 
 from app.db import SessionLocal, engine
 from app.limits import limiter
+from app.middleware import request_context
 from app.routers import auth, dashboard, endpoints, history
 from app.scheduler import run_scheduler
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +37,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(lifespan=lifespan)
+app.middleware("http")(request_context)
 app.include_router(auth.router)
 app.include_router(endpoints.router)
 app.include_router(history.router)
