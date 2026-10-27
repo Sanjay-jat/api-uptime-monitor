@@ -25,7 +25,7 @@ jobs:
     env:
       DATABASE_URL: postgresql+asyncpg://uptime:uptime@localhost:5432/uptime
       TEST_DATABASE_URL: postgresql+asyncpg://uptime:uptime@localhost:5432/uptime_test
-      JWT_SECRET: ci-only-throwaway-value
+      JWT_SECRET: ci-only-throwaway-value-0123456789abcdef
       CORS_ORIGINS: '["http://localhost:3000"]'
     steps:
       - uses: actions/checkout@v4
