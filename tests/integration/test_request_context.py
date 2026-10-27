@@ -64,3 +64,9 @@ async def test_unhandled_error_is_generic_500(client, caplog):
     errors = [x for x in caplog.records if x.levelno == logging.ERROR]
     assert body["request_id"] in errors[0].getMessage()
     assert "secret-internal-detail" in caplog.text
+
+
+async def test_one_access_log_line_per_request(client, caplog):
+    with caplog.at_level(logging.INFO, logger="app.access"):
+        await client.get("/health")
+    assert len(_access_records(caplog)) == 1
