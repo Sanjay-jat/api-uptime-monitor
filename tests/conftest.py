@@ -52,6 +52,7 @@ def _no_rate_limit():
     limiter.enabled = False
     yield
 
+
 @pytest.fixture
 def rate_on():
     limiter.reset()
