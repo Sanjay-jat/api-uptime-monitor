@@ -256,3 +256,23 @@ async def test_parallel_creates_cannot_exceed_limit(client, public_dns, cap_2):
     codes = sorted(r.status_code for r in results)
     assert codes == [201, 201, 403, 403, 403, 403]
     assert len((await client.get("/endpoints", headers=h)).json()) == 2
+
+
+async def test_rate_limit_create_blocks_eleventh(client, public_dns, cap_2, rate_on):
+    h = await make_user(client, "a@example.com")
+    for _ in range(10):
+        r = await client.post("/endpoints", json=BODY, headers=h)
+        assert r.status_code in (201, 403)
+    r = await client.post("/endpoints", json=BODY, headers=h)
+    assert r.status_code == 429
+
+
+async def test_rate_limit_create_is_per_user_not_per_ip(client, public_dns, cap_2, rate_on):
+    ha = await make_user(client, "a@example.com")
+    hb = await make_user(client, "b@example.com")
+    for _ in range(10):
+        await client.post("/endpoints", json=BODY, headers=ha)
+    r = await client.post("/endpoints", json=BODY, headers=ha)
+    assert r.status_code == 429
+    r = await client.post("/endpoints", json=BODY, headers=hb)
+    assert r.status_code == 201
