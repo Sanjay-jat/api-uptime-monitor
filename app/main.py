@@ -5,8 +5,11 @@ from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.db import SessionLocal, engine
+from app.limits import limiter
 from app.routers import auth, dashboard, endpoints, history
 from app.scheduler import run_scheduler
 
@@ -40,3 +43,7 @@ app.include_router(dashboard.router)
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
