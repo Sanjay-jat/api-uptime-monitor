@@ -2,13 +2,14 @@ import asyncio
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.deps import CurrentUser, DbSession
+from app.limits import limiter
 from app.models import RefreshToken, User
 from app.schemas import Credentials, RefreshIn, TokenOut, UserOut, WebhookIn, WebhookOut
 from app.security import (
@@ -33,8 +34,12 @@ async def _issue_tokens(db: AsyncSession, user_id: int) -> TokenOut:
     return TokenOut(access_token=create_access_token(user_id), refresh_token=raw)
 
 
+AUTH_LIMIT = "5/minute"
+
+
 @router.post("/register", response_model=UserOut, status_code=201)
-async def register(body: Credentials, db: DbSession) -> User:
+@limiter.limit(AUTH_LIMIT)
+async def register(request: Request, body: Credentials, db: DbSession) -> User:
     hashed = await asyncio.to_thread(hash_password, body.password)
     user = User(email=body.email, password_hash=hashed)
     db.add(user)
@@ -48,7 +53,8 @@ async def register(body: Credentials, db: DbSession) -> User:
 
 
 @router.post("/login", response_model=TokenOut)
-async def login(body: Credentials, db: DbSession) -> TokenOut:
+@limiter.limit(AUTH_LIMIT)
+async def login(request: Request, body: Credentials, db: DbSession) -> TokenOut:
     user = (await db.execute(select(User).where(User.email == body.email))).scalar_one_or_none()
     hashed = user.password_hash if user else DUMMY_HASH
     ok = await asyncio.to_thread(verify_password, body.password, hashed)
