@@ -16,10 +16,12 @@ dependencies = [
   "PyJWT>=2.8",
   "bcrypt>=4.0",
   "slowapi>=0.1.9",
+  "httpx",
+  "email-validator",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio", "pytest-cov", "httpx", "ruff", "respx>=0.21", "hypothesis"]
+dev = ["pytest", "pytest-asyncio", "pytest-cov", "ruff", "respx>=0.21", "hypothesis"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
