@@ -159,7 +159,6 @@ async def _alert(
     await send_webhook(client, user.webhook_url, user.webhook_secret, body)
 
 
-# shortcut: filter on checked_at alone skips the (endpoint_id, checked_at) index, full scan once a day; add index if table grows past millions
 async def purge_old_pings(session, now: datetime, days: int, batch: int = 1000) -> int:
     cutoff = now - timedelta(days=days)
     total = 0
