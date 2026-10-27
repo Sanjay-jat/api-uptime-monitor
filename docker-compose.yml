@@ -12,7 +12,27 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-
+  api:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://uptime:uptime@db:5432/uptime
+    ports: ["8000:8000"]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    stop_grace_period: 15s
+    restart: unless-stopped
   db_test:
     image: postgres:16
     environment:
