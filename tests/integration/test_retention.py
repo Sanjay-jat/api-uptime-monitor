@@ -2,10 +2,10 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from app.models import Endpoint, PingResult, User
+from app.models import Endpoint, Incident, PingResult, User
 from app.scheduler import purge_old_pings
 
 NOW = datetime(2026, 1, 31, tzinfo=UTC)
@@ -75,3 +75,21 @@ async def test_rows_equal_batch_size(factory):
 async def test_empty_table(factory):
     async with factory() as s:
         assert await purge_old_pings(s, NOW, days=30) == 0
+
+
+async def test_endpoint_delete_cascades_to_pings_and_incidents(factory):
+    async with factory() as s:
+        gone = await make_endpoint(s)
+        kept = await make_endpoint(s)
+        for ep in (gone, kept):
+            s.add(PingResult(endpoint_id=ep.id, ok=True, checked_at=NOW))
+            s.add(Incident(endpoint_id=ep.id))
+        await s.commit()
+        gone_id, kept_id = gone.id, kept.id
+
+        await s.execute(delete(Endpoint).where(Endpoint.id == gone_id))
+        await s.commit()
+
+        for model in (PingResult, Incident):
+            left = await s.scalars(select(model.endpoint_id))
+            assert list(left) == [kept_id]
