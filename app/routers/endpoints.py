@@ -1,15 +1,17 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import cache
 from app.config import get_settings
 from app.deps import CurrentUser, DbSession
+from app.limits import limiter, user_key
 from app.models import Endpoint, User
 from app.schemas import EndpointCreate, EndpointOut, EndpointUpdate
 from app.ssrf import UnsafeURLError, validate_public_url
 
 router = APIRouter(prefix="/endpoints", tags=["endpoints"])
+CREATE_LIMIT = "10/minute"
 
 
 async def _get_owned(db: AsyncSession, user_id: int, endpoint_id: int) -> Endpoint:
@@ -23,7 +25,8 @@ async def _get_owned(db: AsyncSession, user_id: int, endpoint_id: int) -> Endpoi
 
 
 @router.post("", response_model=EndpointOut, status_code=status.HTTP_201_CREATED)
-async def create_endpoint(body: EndpointCreate, db: DbSession, user: CurrentUser):
+@limiter.limit(CREATE_LIMIT, key_func=user_key)
+async def create_endpoint(request: Request, body: EndpointCreate, db: DbSession, user: CurrentUser):
     try:
         await validate_public_url(body.url)
     except UnsafeURLError as e:
