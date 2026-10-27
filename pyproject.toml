@@ -15,6 +15,7 @@ dependencies = [
   "pydantic-settings",
   "PyJWT>=2.8",
   "bcrypt>=4.0",
+  "slowapi>=0.1.9",
 ]
 
 [project.optional-dependencies]
