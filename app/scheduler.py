@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app import cache
 from app.alerts import build_body, send_webhook
+from app.config import get_settings
 from app.models import Endpoint, Incident, PingResult, User
 from app.monitor import Event, Status, next_state, ping
 from app.ws import manager
@@ -110,6 +111,14 @@ async def run_tick(
     )
 
 
+PURGE_EVERY = timedelta(hours=24)
+
+
+async def run_purge(session_factory, now: datetime, days: int) -> int:
+    async with session_factory() as s:
+        return await purge_old_pings(s, now, days)
+
+
 async def run_scheduler(
     session_factory: async_sessionmaker[AsyncSession],
     client: httpx.AsyncClient,
@@ -117,11 +126,19 @@ async def run_scheduler(
     tick_seconds: float = 1.0,
     threshold: int = 3,
 ) -> None:
+    last_purge = datetime.min.replace(tzinfo=UTC)
     while not stop.is_set():
+        now = datetime.now(UTC)
         try:
-            await run_tick(session_factory, client, datetime.now(UTC), threshold)
+            await run_tick(session_factory, client, now, threshold)
         except Exception:
             logger.exception("tick failed")
+        if now - last_purge >= PURGE_EVERY:
+            try:
+                await run_purge(session_factory, now, get_settings().retention_days)
+            except Exception:
+                logger.exception("purge failed")
+            last_purge = now
         with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(stop.wait(), timeout=tick_seconds)
 
