@@ -5,10 +5,11 @@ from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI
-from slowapi import _rate_limit_exceeded_handler
+from fastapi.exceptions import RequestValidationError
 from slowapi.errors import RateLimitExceeded
 
 from app.db import SessionLocal, engine
+from app.errors import rate_limit_handler, validation_handler
 from app.limits import limiter
 from app.middleware import request_context
 from app.routers import auth, dashboard, endpoints, history
@@ -50,4 +51,5 @@ async def health():
 
 
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RequestValidationError, validation_handler)
+app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
