@@ -452,9 +452,7 @@ async def test_full_auth_flow(client):
 
 async def test_rate_limit_register_blocks_sixth(client, rate_on):
     for i in range(5):
-        r = await client.post(
-            "/auth/register", json={**PAYLOAD, "email": f"u{i}@x.com"}
-        )
+        r = await client.post("/auth/register", json={**PAYLOAD, "email": f"u{i}@x.com"})
         assert r.status_code == 201
     r = await client.post("/auth/register", json={**PAYLOAD, "email": "u5@x.com"})
     assert r.status_code == 429
@@ -463,9 +461,7 @@ async def test_rate_limit_register_blocks_sixth(client, rate_on):
 async def test_rate_limit_login_blocks_sixth(client, rate_on):
     await _register(client)
     for _ in range(5):
-        r = await client.post(
-            "/auth/login", json={**PAYLOAD, "password": "wrong-pass-123"}
-        )
+        r = await client.post("/auth/login", json={**PAYLOAD, "password": "wrong-pass-123"})
         assert r.status_code == 401
     r = await client.post("/auth/login", json=PAYLOAD)
     assert r.status_code == 429
