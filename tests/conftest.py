@@ -13,6 +13,7 @@ from sqlalchemy.pool import NullPool
 
 from app.config import get_settings
 from app.db import get_db
+from app.limits import limiter
 from app.main import app
 from app.models import Base
 
@@ -44,3 +45,17 @@ async def client(engine):
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def _no_rate_limit():
+    limiter.enabled = False
+    yield
+
+@pytest.fixture
+def rate_on():
+    limiter.reset()
+    limiter.enabled = True
+    yield
+    limiter.enabled = False
+    limiter.reset()
