@@ -12,6 +12,7 @@ Tests live next to their feature, not copied here.
 - purge placeholder swallowed  test_scheduler_purge::test_purge_uses_retention_days
 - request log line twice       test_one_access_log_line_per_request
 - DB connection held during ping  test_scheduler_check::test_no_open_transaction_while_pinging
+- webhook reply body read into RAM  test_alerts_send::test_response_body_is_never_read
 - missing runtime deps         no test. Found by hand (docker build). CI lacks it.
 
 Test below: httpx INFO log leaked the monitored URL query string.
