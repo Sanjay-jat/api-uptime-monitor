@@ -36,6 +36,7 @@ async def check_endpoint(
     now: datetime,
     threshold: int = 3,
 ) -> Event:
+    await session.commit()
     result = await ping(client, ep.url, ep.method, ep.timeout_seconds, ep.expected_status)
     state = next_state(ep.fail_count, Status(ep.status), result.ok, threshold)
 
