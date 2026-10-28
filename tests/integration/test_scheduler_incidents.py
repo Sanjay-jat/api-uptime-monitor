@@ -11,6 +11,8 @@ from app.scheduler import check_endpoint
 NOW = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
 OK = CheckResult(ok=True, status_code=200, response_ms=42, error=None)
 FAIL = CheckResult(ok=False, status_code=None, response_ms=None, error="timeout")
+OLD_OPEN = datetime(2025, 12, 1, 8, 0, tzinfo=UTC)
+OLD_CLOSE = datetime(2025, 12, 1, 9, 0, tzinfo=UTC)
 
 
 @pytest.fixture()
@@ -127,3 +129,20 @@ async def test_one_incident_per_outage(engine, fake_ping):
     assert len(incs) == 2
     assert incs[0].resolved_at == NOW
     assert incs[1].resolved_at is None
+
+
+async def test_recovery_does_not_touch_old_closed_incident(engine, fake_ping):
+    Session = async_sessionmaker(engine, expire_on_commit=False)
+    fake_ping.extend([FAIL, OK])
+    async with Session() as s:
+        ep = await _make_endpoint(s)
+        s.add(Incident(endpoint_id=ep.id, opened_at=OLD_OPEN, resolved_at=OLD_CLOSE))
+        await s.flush()
+        await check_endpoint(s, None, ep, NOW, threshold=1)
+        event = await check_endpoint(s, None, ep, NOW, threshold=1)
+
+    incs = await _incidents(Session)
+    assert event == Event.RECOVERED
+    assert len(incs) == 2
+    assert incs[0].resolved_at == OLD_CLOSE
+    assert incs[1].resolved_at == NOW
