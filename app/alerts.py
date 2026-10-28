@@ -33,10 +33,12 @@ async def send_webhook(client: httpx.AsyncClient, url: str, secret: str, body: b
     headers = {"Content-Type": "application/json", "X-Signature": f"sha256={sign(secret, body)}"}
     try:
         async with asyncio.timeout(SEND_TIMEOUT):
-            r = await client.post(url, content=body, headers=headers)
+            async with client.stream("POST", url, content=body, headers=headers) as r:
+                ok = r.is_success
+                status = r.status_code
     except Exception as e:
         logger.warning("webhook failed: %s", type(e).__name__)
         return False
-    if not r.is_success:
-        logger.warning("webhook rejected: status %s", r.status_code)
-    return r.is_success
+    if not ok:
+        logger.warning("webhook rejected: status %s", status)
+    return ok
