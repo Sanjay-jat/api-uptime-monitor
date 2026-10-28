@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.deps import CurrentUser, DbSession
-from app.limits import limiter
+from app.limits import limiter, user_key
 from app.models import RefreshToken, User
 from app.schemas import Credentials, RefreshIn, TokenOut, UserOut, WebhookIn, WebhookOut
 from app.security import (
@@ -112,7 +112,8 @@ async def logout(body: RefreshIn, db: DbSession) -> None:
 
 
 @router.put("/me/webhook", response_model=WebhookOut)
-async def set_webhook(body: WebhookIn, user: CurrentUser, db: DbSession):
+@limiter.limit("10/minute", key_func=user_key)
+async def set_webhook(request: Request, body: WebhookIn, user: CurrentUser, db: DbSession):
     try:
         await validate_public_url(body.url)
     except UnsafeURLError as e:
