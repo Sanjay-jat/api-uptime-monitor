@@ -198,7 +198,7 @@ async def test_dns_timeout_is_unsafe(monkeypatch):
     loop = asyncio.get_running_loop()
     monkeypatch.setattr(loop, "getaddrinfo", slow)
     monkeypatch.setattr(ssrf, "DNS_TIMEOUT", 0.01)
-    with pytest.raises(UnsafeURLError, match="cannot resolve host"):
+    with pytest.raises(UnsafeURLError, match="host not allowed"):
         await validate_public_url("https://example.com")
 
 
@@ -208,5 +208,27 @@ async def test_dns_failure_is_unsafe(monkeypatch):
 
     loop = asyncio.get_running_loop()
     monkeypatch.setattr(loop, "getaddrinfo", boom)
-    with pytest.raises(UnsafeURLError, match="cannot resolve host"):
+    with pytest.raises(UnsafeURLError, match="host not allowed"):
         await validate_public_url("https://example.com")
+
+
+async def _error_message(monkeypatch, fake_dns) -> str:
+    loop = asyncio.get_running_loop()
+    monkeypatch.setattr(loop, "getaddrinfo", fake_dns)
+    with pytest.raises(UnsafeURLError) as exc:
+        await validate_public_url("https://example.com")
+    return str(exc.value)
+
+
+async def test_unresolvable_and_private_host_give_same_error(monkeypatch):
+    """Different messages let an attacker map internal DNS names."""
+
+    async def missing(*args, **kwargs):
+        raise socket.gaierror("no such host")
+
+    async def private(*args, **kwargs):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.5", 0))]
+
+    msg_missing = await _error_message(monkeypatch, missing)
+    msg_private = await _error_message(monkeypatch, private)
+    assert msg_missing == msg_private
