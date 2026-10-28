@@ -4,6 +4,7 @@ import socket
 from urllib.parse import urlsplit
 
 DNS_TIMEOUT = 5.0
+HOST_NOT_ALLOWED = "host not allowed"
 
 
 class UnsafeURLError(ValueError):
@@ -40,11 +41,9 @@ async def validate_public_url(url: str) -> None:
         infos = await asyncio.wait_for(
             loop.getaddrinfo(host, None, type=socket.SOCK_STREAM), timeout=DNS_TIMEOUT
         )
-    except TimeoutError:
-        raise UnsafeURLError("cannot resolve host") from None
-    except socket.gaierror:
-        raise UnsafeURLError("cannot resolve host") from None
+    except (TimeoutError, socket.gaierror):
+        raise UnsafeURLError(HOST_NOT_ALLOWED) from None
     for info in infos:
         addr = info[4][0]
         if _is_blocked(ipaddress.ip_address(addr)):
-            raise UnsafeURLError("host resolves to blocked IP")
+            raise UnsafeURLError(HOST_NOT_ALLOWED)
