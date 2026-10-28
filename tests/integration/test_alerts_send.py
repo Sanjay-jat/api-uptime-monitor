@@ -98,3 +98,20 @@ async def test_failure_logs_do_not_leak_secret_or_url(http, dns, respx_mock, cap
     assert caplog.records
     assert SECRET not in caplog.text
     assert "path-token-123" not in caplog.text
+
+
+class SpyBody(httpx.AsyncByteStream):
+    consumed = False
+
+    async def __aiter__(self):
+        self.consumed = True
+        yield b"x"
+
+
+async def test_response_body_is_never_read(dns):
+    """Reading the body lets a hostile receiver stream gigabytes into RAM."""
+    spy = SpyBody()
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, stream=spy))
+    async with httpx.AsyncClient(transport=transport) as c:
+        assert await send_webhook(c, URL, SECRET, BODY) is True
+    assert spy.consumed is False
