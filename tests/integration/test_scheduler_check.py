@@ -119,3 +119,20 @@ async def test_threshold_param_is_used(engine, fake_ping):
 
     assert event == Event.WENT_DOWN
     assert ep.status == "down"
+
+
+async def test_no_open_transaction_while_pinging(engine, monkeypatch):
+    """An open transaction holds a pooled DB connection during the slow ping."""
+    Session = async_sessionmaker(engine, expire_on_commit=False)
+    async with Session() as s:
+        seen = []
+
+        async def _ping(*args, **kwargs):
+            seen.append(s.in_transaction())
+            return OK
+
+        monkeypatch.setattr("app.scheduler.ping", _ping)
+        ep = await _make_endpoint(s)
+        await check_endpoint(s, None, ep, NOW)
+
+    assert seen == [False]
