@@ -135,3 +135,21 @@ async def test_delete_touches_only_own_webhook(client, engine, public_dns):
     await client.delete("/auth/me/webhook", headers=ha)
     assert (await _user_row(engine, "a@example.com")).webhook_url is None
     assert (await _user_row(engine, "b@example.com")).webhook_url == URL
+
+
+async def test_rate_limit_webhook_put_blocks_eleventh(client, public_dns, rate_on):
+    h = await _auth(client)
+    for _ in range(10):
+        r = await client.put("/auth/me/webhook", json={"url": URL}, headers=h)
+        assert r.status_code == 200
+    r = await client.put("/auth/me/webhook", json={"url": URL}, headers=h)
+    assert r.status_code == 429
+
+
+async def test_rate_limit_webhook_put_is_per_user_not_per_ip(client, public_dns, rate_on):
+    h1 = await _auth(client, "a@example.com")
+    h2 = await _auth(client, "b@example.com")
+    for _ in range(10):
+        await client.put("/auth/me/webhook", json={"url": URL}, headers=h1)
+    r = await client.put("/auth/me/webhook", json={"url": URL}, headers=h2)
+    assert r.status_code == 200
