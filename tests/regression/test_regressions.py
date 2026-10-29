@@ -21,6 +21,7 @@ Tests live next to their feature, not copied here.
 - JWT_SECRET length was not enforced  test_config::test_short_jwt_secret_is_rejected
 - WS binary frame crashed route  test_ws::test_binary_message_after_auth_is_ignored
 - shorter interval ignored by schedule  test_endpoints::test_patch_shorter_interval_...
+- paused endpoint kept old status  test_endpoints::test_pause_removes_endpoint_from_status_cache
 - missing runtime deps         no pytest test. CI docker job catches it (import inside image).
 
 Test below: httpx INFO log leaked the monitored URL query string.
