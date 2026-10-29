@@ -20,7 +20,7 @@ async def list_pings(
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
-    await _get_owned(db, user.id, endpoint_id)  # 404 agar nahi mila
+    await _get_owned(db, user.id, endpoint_id)  # 404 if missing or not yours
     stmt = (
         select(PingResult)
         .where(PingResult.endpoint_id == endpoint_id)
@@ -69,7 +69,7 @@ async def list_incidents(
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
-    await _get_owned(db, user.id, endpoint_id)  # 404 agar nahi mila
+    await _get_owned(db, user.id, endpoint_id)  # 404 if missing or not yours
     stmt = (
         select(Incident)
         .where(Incident.endpoint_id == endpoint_id)

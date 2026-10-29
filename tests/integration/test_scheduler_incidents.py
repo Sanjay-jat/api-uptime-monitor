@@ -43,7 +43,7 @@ async def _make_endpoint(session, email="a@example.com", **kw) -> Endpoint:
 
 
 async def _incidents(Session) -> list[Incident]:
-    # nayi session: UPDATE seedha SQL se chalta hai, purani session ka object purana rehta hai
+    # new session: the UPDATE runs as raw SQL, an old session would show stale objects
     async with Session() as s:
         return list((await s.scalars(select(Incident).order_by(Incident.id))).all())
 

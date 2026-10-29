@@ -11,7 +11,7 @@ SEND_TIMEOUT = 5.0
 CLOSE_TIMEOUT = 2.0
 
 
-# shortcut: sequential send, slow client max 5s; 1 worker, multi-worker ke liye Redis pub/sub
+# shortcut: sequential send, slow client max 5s; 1 worker, use Redis pub/sub for more
 class ConnectionManager:
     def __init__(self) -> None:
         self._conns: dict[int, set[WebSocket]] = {}

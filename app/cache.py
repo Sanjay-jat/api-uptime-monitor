@@ -1,6 +1,6 @@
 from typing import Any
 
-# shortcut: in-memory, restart par khaali + sirf 1 worker, multi-worker ke liye Redis
+# shortcut: in-memory, empty after restart, 1 worker only; use Redis for more
 _store: dict[int, dict[int, dict[str, Any]]] = {}
 
 

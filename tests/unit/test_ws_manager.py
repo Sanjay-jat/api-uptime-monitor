@@ -67,8 +67,8 @@ def test_double_disconnect_and_unknown_are_noop():
     m.add(1, a)
     m.add(1, FakeWS())
     m.disconnect(1, a)
-    m.disconnect(1, a)  # dobara: crash nahi
-    m.disconnect(99, a)  # anjaan user: crash nahi
+    m.disconnect(1, a)  # again: no crash
+    m.disconnect(99, a)  # unknown user: no crash
 
 
 async def test_dead_socket_removed_and_others_still_served():

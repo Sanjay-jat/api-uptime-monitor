@@ -61,7 +61,7 @@ async def test_full_outage_cycle_with_signed_alerts(engine, http, dns, respx_moc
     respx_mock.get(API).mock(side_effect=[httpx.Response(500)] * 3 + [httpx.Response(200)])
     hook = respx_mock.post(HOOK).respond(200)
 
-    # tick 1 aur 2: fail, par abhi DOWN nahi
+    # ticks 1 and 2: failed, but not DOWN yet
     for i in range(2):
         await run_tick(Session, http, T0 + timedelta(hours=i))
     assert hook.call_count == 0
