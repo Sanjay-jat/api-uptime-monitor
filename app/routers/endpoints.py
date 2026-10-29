@@ -81,6 +81,8 @@ async def update_endpoint(
         ep.next_check_at = min(ep.next_check_at, due)
     await db.commit()
     await db.refresh(ep)
+    if body.is_active is False:
+        cache.remove(user.id, endpoint_id)
     return ep
 
 
