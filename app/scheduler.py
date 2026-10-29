@@ -156,8 +156,10 @@ async def _alert(
     user = await session.get(User, ep.user_id)
     if user is None or not user.webhook_url or not user.webhook_secret:
         return
+    url, secret = user.webhook_url, user.webhook_secret
+    await session.commit()  # release pooled connection during the webhook send
     body = build_body(event, ep.id, ep.url, now)
-    await send_webhook(client, user.webhook_url, user.webhook_secret, body)
+    await send_webhook(client, url, secret, body)
 
 
 async def purge_old_pings(session, now: datetime, days: int, batch: int = 1000) -> int:
