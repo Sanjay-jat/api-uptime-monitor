@@ -66,7 +66,7 @@ Settings come from environment variables (see `.env.example`).
 | Variable | Purpose |
 |---|---|
 | `DATABASE_URL` | Postgres URL (asyncpg). Compose overrides the host for the api container |
-| `TEST_DATABASE_URL` | Separate database used by the test suite |
+| `TEST_DATABASE_URL` | Tests only. Optional: the app and the Docker image start without it |
 | `JWT_SECRET` | Signing key, at least 32 characters, no default |
 | `JWT_ALGORITHM` | Default `HS256` |
 | `ACCESS_TOKEN_MINUTES` / `REFRESH_TOKEN_DAYS` | Token lifetimes (15 min / 7 days) |
@@ -94,7 +94,7 @@ pytest -q
 
 With coverage: `pytest -q --cov=app --cov-report=term-missing`
 
-The suite has unit tests (state machine, SSRF validator with Hypothesis, uptime math), integration tests against a real Postgres test database (auth, ownership, scheduler with mocked HTTP, WebSocket, rate limits, errors, CORS) and a regression file with one test per fixed bug. CI runs lint, migrations on an empty database, the full suite, and a coverage gate of 90%.
+The suite has unit tests (state machine, SSRF validator with Hypothesis, uptime math), integration tests against a real Postgres test database (auth, ownership, scheduler with mocked HTTP, WebSocket, rate limits, errors, CORS) and a regression file with one test per fixed bug. CI runs two jobs. `check`: lint, migrations on an empty database, the full suite and a coverage gate of 90%. `docker`: builds the image and imports the app inside it with no test database URL, which catches missing runtime dependencies.
 
 ## Security notes
 
@@ -102,6 +102,7 @@ The suite has unit tests (state machine, SSRF validator with Hypothesis, uptime 
 - Passwords: bcrypt. Refresh tokens: stored as SHA-256 hashes, rotated on use.
 - Errors never expose stack traces or echo user input. A request ID is returned in `X-Request-ID`.
 - The httpx INFO log is silenced because it prints full URLs, which can contain secrets in query strings.
+- Rate limits (in memory): register and login 5 per minute per IP; create endpoint, update endpoint and set webhook 10 per minute per user.
 
 ## Design decisions
 
@@ -121,6 +122,8 @@ The suite has unit tests (state machine, SSRF validator with Hypothesis, uptime 
 - DNS rebinding: the URL is re-validated before each request, but httpx resolves the name again when it connects. Pinning the resolved IP in the transport would close this window.
 - One slow ping (timeout up to 30 s) delays the whole tick. Broadcast and webhook sends are awaited inline.
 - Webhook alerts are one attempt, no retry, no cooldown. The webhook secret is stored in plain text.
+- A webhook send (up to 10 s) holds a database connection while it runs.
+- The `refresh_tokens` table is never cleaned. Expired and revoked rows stay.
 - Migrations run on container start, which is fine for one container and racy for several.
 - No pagination on `GET /endpoints` (capped at 10 per user).
 - No performance benchmarks have been run, so none are claimed.
