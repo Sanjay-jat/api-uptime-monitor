@@ -276,3 +276,25 @@ async def test_rate_limit_create_is_per_user_not_per_ip(client, public_dns, cap_
     assert r.status_code == 429
     r = await client.post("/endpoints", json=BODY, headers=hb)
     assert r.status_code == 201
+
+
+async def test_rate_limit_patch_blocks_eleventh(client, public_dns, rate_on):
+    h = await make_user(client, "a@example.com")
+    ep = await create_ep(client, h)
+    url = f"/endpoints/{ep['id']}"
+    for _ in range(10):
+        r = await client.patch(url, json={"interval_seconds": 120}, headers=h)
+        assert r.status_code == 200
+    r = await client.patch(url, json={"interval_seconds": 120}, headers=h)
+    assert r.status_code == 429
+
+
+async def test_rate_limit_patch_is_per_user_not_per_ip(client, public_dns, rate_on):
+    ha = await make_user(client, "a@example.com")
+    hb = await make_user(client, "b@example.com")
+    ep = await create_ep(client, ha)
+    url = f"/endpoints/{ep['id']}"
+    for _ in range(10):
+        await client.patch(url, json={"interval_seconds": 120}, headers=ha)
+    r = await client.patch(url, json={"interval_seconds": 120}, headers=hb)
+    assert r.status_code == 404
