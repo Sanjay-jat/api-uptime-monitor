@@ -99,3 +99,23 @@ async def test_last_dead_socket_drops_user_entry():
     m.add(1, FakeWS(error=RuntimeError("closed")))
     await m.broadcast(1, {"x": 1})
     assert 1 not in m._conns
+
+
+class _DeadWS:
+    closed = False
+
+    async def send_json(self, payload):
+        raise RuntimeError("dead")
+
+    async def close(self, code=1000):
+        self.closed = True
+
+
+async def test_dead_socket_is_closed_so_client_can_reconnect():
+    from app.ws import ConnectionManager
+
+    m = ConnectionManager()
+    ws = _DeadWS()
+    m.add(1, ws)
+    await m.broadcast(1, {"x": 1})
+    assert ws.closed is True
