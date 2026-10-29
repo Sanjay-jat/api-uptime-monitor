@@ -14,6 +14,7 @@ Tests live next to their feature, not copied here.
 - DB connection held during ping  test_scheduler_check::test_no_open_transaction_while_pinging
 - webhook reply body read into RAM  test_alerts_send::test_response_body_is_never_read
 - webhook PUT had no rate limit   test_webhook::test_rate_limit_webhook_put_blocks_eleventh
+- PATCH endpoint had no rate limit  test_endpoints::test_rate_limit_patch_blocks_eleventh
 - missing runtime deps         no test. Found by hand (docker build). CI lacks it.
 
 Test below: httpx INFO log leaked the monitored URL query string.
