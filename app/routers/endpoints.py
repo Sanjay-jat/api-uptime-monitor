@@ -12,6 +12,7 @@ from app.ssrf import UnsafeURLError, validate_public_url
 
 router = APIRouter(prefix="/endpoints", tags=["endpoints"])
 CREATE_LIMIT = "10/minute"
+UPDATE_LIMIT = "10/minute"
 
 
 async def _get_owned(db: AsyncSession, user_id: int, endpoint_id: int) -> Endpoint:
@@ -61,7 +62,10 @@ async def get_endpoint(endpoint_id: int, db: DbSession, user: CurrentUser):
 
 
 @router.patch("/{endpoint_id}", response_model=EndpointOut)
-async def update_endpoint(body: EndpointUpdate, db: DbSession, user: CurrentUser, endpoint_id: int):
+@limiter.limit(UPDATE_LIMIT, key_func=user_key)
+async def update_endpoint(
+    request: Request, body: EndpointUpdate, db: DbSession, user: CurrentUser, endpoint_id: int
+):
     ep = await _get_owned(db, user.id, endpoint_id)
     if body.url is not None:
         try:
