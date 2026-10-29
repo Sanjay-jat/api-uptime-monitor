@@ -1,6 +1,6 @@
 import pytest
 
-from app.config import get_settings
+from app.config import Settings, get_settings
 
 
 @pytest.fixture(autouse=True)
@@ -29,3 +29,10 @@ def test_token_lifetimes_positive():
     settings = get_settings()
     assert settings.access_token_minutes > 0
     assert settings.refresh_token_days > 0
+
+
+def test_test_database_url_is_optional(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://x")
+    monkeypatch.setenv("JWT_SECRET", "x" * 32)
+    monkeypatch.delenv("TEST_DATABASE_URL", raising=False)
+    assert Settings(_env_file=None).test_database_url is None
