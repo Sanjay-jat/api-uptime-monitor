@@ -15,7 +15,7 @@ A multi-tenant FastAPI backend that monitors your HTTP endpoints. Register a URL
 - History, uptime percentage (24h / 7d / 30d) and incident list per endpoint
 - SSRF protection on every registered URL and every outbound request
 - Rate limiting, request IDs, structured JSON access logs, consistent error shape, no stack traces to clients
-- Daily retention job (deletes ping rows older than 30 days)
+- Daily retention job (deletes ping rows older than 30 days and expired refresh tokens)
 
 ## Architecture
 
@@ -122,7 +122,6 @@ The suite has unit tests (state machine, SSRF validator with Hypothesis, uptime 
 - DNS rebinding: the URL is re-validated before each request, but httpx resolves the name again when it connects. Pinning the resolved IP in the transport would close this window.
 - One slow ping (timeout up to 30 s) delays the whole tick. Broadcast and webhook sends are awaited inline.
 - Webhook alerts are one attempt, no retry, no cooldown. The webhook secret is stored in plain text.
-- The `refresh_tokens` table is never cleaned. Expired and revoked rows stay.
 - Migrations run on container start, which is fine for one container and racy for several.
 - No rate limit on `POST /auth/refresh`. Refresh tokens are 256-bit random values, so guessing is not practical.
 - The request ID appears in the access log and in 500 responses only, not in scheduler or alert logs. CORS preflight responses have no `X-Request-ID`.
