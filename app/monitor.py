@@ -43,16 +43,12 @@ def next_state(prev_fail_count: int, status: Status, ok: bool, threshold: int) -
     if threshold < 1:
         raise ValueError("threshold must be >= 1")
     if ok:
-        fail_count = 0
-        if status == Status.DOWN:
-            return State(fail_count=fail_count, status=Status.UP, event=Event.RECOVERED)
-        else:
-            return State(fail_count=fail_count, status=Status.UP, event=Event.NONE)
+        event = Event.RECOVERED if status == Status.DOWN else Event.NONE
+        return State(fail_count=0, status=Status.UP, event=event)
     fail_count = prev_fail_count + 1
     if status == Status.UP and fail_count >= threshold:
         return State(fail_count=fail_count, status=Status.DOWN, event=Event.WENT_DOWN)
-    else:
-        return State(fail_count=fail_count, status=status, event=Event.NONE)
+    return State(fail_count=fail_count, status=status, event=Event.NONE)
 
 
 async def ping(
@@ -62,10 +58,10 @@ async def ping(
     timeout: float,
     expected_status: int,
 ) -> CheckResult:
-    start = time.perf_counter()
     try:
         async with asyncio.timeout(timeout):
             await validate_public_url(url)
+            start = time.perf_counter()
             async with client.stream(method, url) as response:
                 status_code = response.status_code
     except UnsafeURLError:
