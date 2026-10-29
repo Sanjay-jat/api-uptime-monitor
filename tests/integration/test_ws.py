@@ -161,3 +161,14 @@ def test_client_messages_after_auth_are_ignored(tc):
         ws.send_json({"anything": 1})
         assert len(manager._conns[uid]) == 1
     assert uid not in manager._conns
+
+
+def test_binary_message_after_auth_is_ignored(tc):
+    token, uid = _user(tc, "a@example.com")
+    with tc.websocket_connect("/ws/dashboard") as ws:
+        ws.send_json({"token": token})
+        ws.receive_json()
+        ws.send_bytes(b"\x00\x01")
+        ws.send_json({"anything": 1})
+        assert len(manager._conns[uid]) == 1
+    assert uid not in manager._conns
