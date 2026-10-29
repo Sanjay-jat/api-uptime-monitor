@@ -4,13 +4,15 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
 
 from app.config import get_settings
 from app.db import SessionLocal, engine
+from app.deps import DbSession
 from app.errors import rate_limit_handler, validation_handler
 from app.limits import limiter
 from app.middleware import request_context
@@ -56,7 +58,12 @@ app.include_router(dashboard.router)
 
 
 @app.get("/health")
-async def health():
+async def health(db: DbSession):
+    try:
+        await db.execute(text("SELECT 1"))
+    except Exception:
+        logger.exception("health check failed")
+        raise HTTPException(status_code=503, detail="Database unavailable") from None
     return {"status": "ok"}
 
 
