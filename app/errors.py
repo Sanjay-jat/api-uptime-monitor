@@ -9,5 +9,13 @@ async def validation_handler(request: Request, exc: RequestValidationError) -> J
     return JSONResponse(status_code=422, content={"detail": detail})
 
 
+# shortcut: all limits are per minute; read the window from the limit if that changes
+RETRY_AFTER_SECONDS = "60"
+
+
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
-    return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded"})
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Rate limit exceeded"},
+        headers={"Retry-After": RETRY_AFTER_SECONDS},
+    )
