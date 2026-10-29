@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 
 from app.config import Settings, get_settings
 
@@ -36,3 +37,16 @@ def test_test_database_url_is_optional(monkeypatch):
     monkeypatch.setenv("JWT_SECRET", "x" * 32)
     monkeypatch.delenv("TEST_DATABASE_URL", raising=False)
     assert Settings(_env_file=None).test_database_url is None
+
+
+def test_short_jwt_secret_is_rejected(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://x")
+    monkeypatch.setenv("JWT_SECRET", "x" * 31)
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)
+
+
+def test_32_char_jwt_secret_is_accepted(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://x")
+    monkeypatch.setenv("JWT_SECRET", "x" * 32)
+    assert len(Settings(_env_file=None).jwt_secret) == 32
