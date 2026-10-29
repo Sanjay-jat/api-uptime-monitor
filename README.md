@@ -125,7 +125,6 @@ The suite has unit tests (state machine, SSRF validator with Hypothesis, uptime 
 - The `refresh_tokens` table is never cleaned. Expired and revoked rows stay.
 - Migrations run on container start, which is fine for one container and racy for several.
 - No rate limit on `POST /auth/refresh`. Refresh tokens are 256-bit random values, so guessing is not practical.
-- `429` responses have no `Retry-After` header.
 - The request ID appears in the access log and in 500 responses only, not in scheduler or alert logs. CORS preflight responses have no `X-Request-ID`.
 - The WebSocket has no Origin check. It authenticates with a first-message token, not a cookie.
 - Unauthenticated WebSocket connections are not capped. Each waits at most 10 s for the token.
