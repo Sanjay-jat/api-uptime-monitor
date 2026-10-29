@@ -24,7 +24,7 @@ from app.models import Base
 @pytest.fixture()
 async def engine() -> AsyncIterator[AsyncEngine]:
     url = get_settings().test_database_url
-    assert url.endswith("_test"), "refusing to run tests on a non-test DB"
+    assert url and url.endswith("_test"), "set TEST_DATABASE_URL to a *_test DB"
     eng = create_async_engine(url, poolclass=NullPool)
     async with eng.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
