@@ -42,7 +42,9 @@ async def dashboard(ws: WebSocket, db: DbSession):
     try:
         await ws.send_json({"type": "snapshot", "data": cache.get_user_statuses(user_id)})
         while True:
-            await ws.receive_text()
+            msg = await ws.receive()
+            if msg["type"] == "websocket.disconnect":
+                break
     except WebSocketDisconnect:
         pass
     finally:
