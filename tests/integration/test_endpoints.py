@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from app import cache
 from app.models import Endpoint
 
 
@@ -330,3 +331,15 @@ async def test_patch_longer_interval_does_not_push_next_check_later(client, publ
     ep = await create_ep(client, h)
     r = await client.patch(f"/endpoints/{ep['id']}", json={"interval_seconds": 86400}, headers=h)
     assert r.json()["next_check_at"] == ep["next_check_at"]
+
+
+async def test_pause_removes_endpoint_from_status_cache(client, public_dns):
+    cache.clear()
+    h = await make_user(client, "a@example.com")
+    uid = (await client.get("/auth/me", headers=h)).json()["id"]
+    ep = await create_ep(client, h)
+    cache.set_status(uid, ep["id"], {"endpoint_id": ep["id"], "status": "up"})
+    r = await client.patch(f"/endpoints/{ep['id']}", json={"is_active": False}, headers=h)
+    assert r.status_code == 200
+    assert cache.get_user_statuses(uid) == []
+    cache.clear()
