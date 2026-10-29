@@ -16,7 +16,8 @@ Tests live next to their feature, not copied here.
 - webhook PUT had no rate limit   test_webhook::test_rate_limit_webhook_put_blocks_eleventh
 - PATCH endpoint had no rate limit  test_endpoints::test_rate_limit_patch_blocks_eleventh
 - prod image needed TEST_DATABASE_URL  test_config::test_test_database_url_is_optional
-- timed-out WS client never closed  test_ws_manager::test_dead_socket_is_closed_so_client_can_reconnect
+- timed-out WS client never closed  test_ws_manager::test_dead_socket_is_closed_...
+- /health said ok with DB down  test_health_db::test_health_is_503_when_db_is_down
 - missing runtime deps         no pytest test. CI docker job catches it (import inside image).
 
 Test below: httpx INFO log leaked the monitored URL query string.
