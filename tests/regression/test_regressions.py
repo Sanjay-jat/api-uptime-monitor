@@ -23,6 +23,7 @@ Tests live next to their feature, not copied here.
 - shorter interval ignored by schedule  test_endpoints::test_patch_shorter_interval_...
 - paused endpoint kept old status  test_endpoints::test_pause_removes_endpoint_from_status_cache
 - webhook send held DB connection  test_alert_connection::test_no_open_transaction_...
+- 429 had no Retry-After header  test_retry_after::test_429_has_retry_after_header
 - missing runtime deps         no pytest test. CI docker job catches it (import inside image).
 
 Test below: httpx INFO log leaked the monitored URL query string.
