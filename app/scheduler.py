@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app import cache
 from app.alerts import build_body, send_webhook
 from app.config import get_settings
-from app.models import Endpoint, Incident, PingResult, User
+from app.models import Endpoint, Incident, PingResult, RefreshToken, User
 from app.monitor import Event, Status, next_state, ping
 from app.ws import manager
 
@@ -117,7 +117,9 @@ PURGE_EVERY = timedelta(hours=24)
 
 async def run_purge(session_factory, now: datetime, days: int) -> int:
     async with session_factory() as s:
-        return await purge_old_pings(s, now, days)
+        total = await purge_old_pings(s, now, days)
+        await purge_expired_tokens(s, now)
+        return total
 
 
 async def run_scheduler(
@@ -173,3 +175,10 @@ async def purge_old_pings(session, now: datetime, days: int, batch: int = 1000) 
         if result.rowcount < batch:
             break
     return total
+
+
+async def purge_expired_tokens(session, now: datetime) -> int:
+    # shortcut: one unbatched delete; batch it if the table gets huge
+    result = await session.execute(delete(RefreshToken).where(RefreshToken.expires_at < now))
+    await session.commit()
+    return result.rowcount
