@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -74,6 +76,9 @@ async def update_endpoint(
             raise HTTPException(status_code=422, detail=str(e)) from None
     for key, value in body.model_dump(exclude_none=True).items():
         setattr(ep, key, value)
+    if body.interval_seconds is not None:
+        due = datetime.now(UTC) + timedelta(seconds=ep.interval_seconds)
+        ep.next_check_at = min(ep.next_check_at, due)
     await db.commit()
     await db.refresh(ep)
     return ep
