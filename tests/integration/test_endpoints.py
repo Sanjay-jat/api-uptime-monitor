@@ -1,8 +1,13 @@
 import asyncio
 import socket
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import async_sessionmaker
+
+from app.models import Endpoint
 
 
 @pytest.fixture
@@ -298,3 +303,30 @@ async def test_rate_limit_patch_is_per_user_not_per_ip(client, public_dns, rate_
         await client.patch(url, json={"interval_seconds": 120}, headers=ha)
     r = await client.patch(url, json={"interval_seconds": 120}, headers=hb)
     assert r.status_code == 404
+
+
+async def _push_next_check(engine, ep_id, delta):
+    Session = async_sessionmaker(engine, expire_on_commit=False)
+    async with Session() as s:
+        await s.execute(
+            update(Endpoint)
+            .where(Endpoint.id == ep_id)
+            .values(next_check_at=datetime.now(UTC) + delta)
+        )
+        await s.commit()
+
+
+async def test_patch_shorter_interval_pulls_next_check_closer(client, engine, public_dns):
+    h = await make_user(client, "a@example.com")
+    ep = await create_ep(client, h)
+    await _push_next_check(engine, ep["id"], timedelta(days=1))
+    r = await client.patch(f"/endpoints/{ep['id']}", json={"interval_seconds": 60}, headers=h)
+    nxt = datetime.fromisoformat(r.json()["next_check_at"])
+    assert nxt <= datetime.now(UTC) + timedelta(seconds=61)
+
+
+async def test_patch_longer_interval_does_not_push_next_check_later(client, public_dns):
+    h = await make_user(client, "a@example.com")
+    ep = await create_ep(client, h)
+    r = await client.patch(f"/endpoints/{ep['id']}", json={"interval_seconds": 86400}, headers=h)
+    assert r.json()["next_check_at"] == ep["next_check_at"]
