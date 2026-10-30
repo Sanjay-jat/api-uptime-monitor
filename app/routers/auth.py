@@ -35,6 +35,7 @@ async def _issue_tokens(db: AsyncSession, user_id: int) -> TokenOut:
 
 
 AUTH_LIMIT = "5/minute"
+REFRESH_LIMIT = "20/minute"
 
 
 @router.post("/register", response_model=UserOut, status_code=201)
@@ -71,7 +72,8 @@ async def me(current_user: CurrentUser) -> User:
 
 
 @router.post("/refresh", response_model=TokenOut)
-async def refresh(body: RefreshIn, db: DbSession) -> TokenOut:
+@limiter.limit(REFRESH_LIMIT)
+async def refresh(request: Request, body: RefreshIn, db: DbSession) -> TokenOut:
     invalid = HTTPException(
         status_code=401, detail="Invalid refresh token", headers={"WWW-Authenticate": "Bearer"}
     )
