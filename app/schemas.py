@@ -37,7 +37,7 @@ class TokenOut(BaseModel):
 
 
 class RefreshIn(BaseModel):
-    refresh_token: str
+    refresh_token: str = Field(max_length=256)
 
 
 MIN_INTERVAL = 60
