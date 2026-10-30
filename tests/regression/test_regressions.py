@@ -25,6 +25,7 @@ Tests live next to their feature, not copied here.
 - webhook send held DB connection  test_alert_connection::test_no_open_transaction_...
 - 429 had no Retry-After header  test_retry_after::test_429_has_retry_after_header
 - expired refresh tokens never cleaned  test_token_purge::test_run_purge_also_cleans_...
+- /auth/refresh had no rate limit  test_refresh_limit::test_refresh_is_rate_limited_per_ip
 - missing runtime deps         no pytest test. CI docker job catches it (import inside image).
 
 Test below: httpx INFO log leaked the monitored URL query string.
