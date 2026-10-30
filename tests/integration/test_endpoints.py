@@ -343,3 +343,9 @@ async def test_pause_removes_endpoint_from_status_cache(client, public_dns):
     assert r.status_code == 200
     assert cache.get_user_statuses(uid) == []
     cache.clear()
+
+
+async def test_create_url_with_empty_dns_label_is_422_not_500(client):
+    h = await make_user(client, "a@example.com")
+    r = await client.post("/endpoints", json={**BODY, "url": "http://a..b/"}, headers=h)
+    assert r.status_code == 422
