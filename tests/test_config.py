@@ -50,3 +50,10 @@ def test_32_char_jwt_secret_is_accepted(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://x")
     monkeypatch.setenv("JWT_SECRET", "x" * 32)
     assert len(Settings(_env_file=None).jwt_secret) == 32
+
+
+def test_env_example_secret_is_not_usable(monkeypatch):
+    monkeypatch.delenv("JWT_SECRET", raising=False)
+    with pytest.raises(ValidationError) as exc:
+        Settings(_env_file=".env.example")
+    assert "jwt_secret" in str(exc.value)
