@@ -27,6 +27,7 @@ Tests live next to their feature, not copied here.
 - expired refresh tokens never cleaned  test_token_purge::test_run_purge_also_cleans_...
 - /auth/refresh had no rate limit  test_refresh_limit::test_refresh_is_rate_limited_per_ip
 - .env.example secret passed validation  test_config::test_env_example_secret_is_not_usable
+- empty DNS label gave 500  test_endpoints::test_create_url_with_empty_dns_label_is_422_not_500
 - missing runtime deps         no pytest test. CI docker job catches it (import inside image).
 
 Test below: httpx INFO log leaked the monitored URL query string.
