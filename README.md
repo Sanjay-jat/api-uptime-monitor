@@ -115,7 +115,7 @@ The suite has unit tests (state machine, SSRF validator with Hypothesis, uptime 
 ## Known limitations
 
 - Run exactly one worker. Two workers would ping every endpoint twice and split WebSocket clients. Upgrade path: Redis (pub/sub, rate-limit store, cache) plus a leader lock.
-- The rate limiter is in memory. Behind a reverse proxy all users can share one IP unless forwarded headers are handled.
+- Rate limits (in memory): register and login 5 per minute per IP; refresh 20 per minute per IP; create endpoint, update endpoint and set webhook 10 per minute per user.
 - Access tokens stay valid until they expire (up to 15 minutes) after logout, and a WebSocket stays open after its token expires. The token is checked only at connect.
 - The status cache is empty after a restart until each endpoint's next ping, so the first snapshot can be empty.
 - No heartbeat on WebSockets and no cap on sockets per user.
@@ -123,7 +123,6 @@ The suite has unit tests (state machine, SSRF validator with Hypothesis, uptime 
 - One slow ping (timeout up to 30 s) delays the whole tick. Broadcast and webhook sends are awaited inline.
 - Webhook alerts are one attempt, no retry, no cooldown. The webhook secret is stored in plain text.
 - Migrations run on container start, which is fine for one container and racy for several.
-- No rate limit on `POST /auth/refresh`. Refresh tokens are 256-bit random values, so guessing is not practical.
 - The request ID appears in the access log and in 500 responses only, not in scheduler or alert logs. CORS preflight responses have no `X-Request-ID`.
 - The WebSocket has no Origin check. It authenticates with a first-message token, not a cookie.
 - Unauthenticated WebSocket connections are not capped. Each waits at most 10 s for the token.
