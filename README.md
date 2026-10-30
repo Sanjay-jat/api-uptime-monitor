@@ -127,4 +127,5 @@ The suite has unit tests (state machine, SSRF validator with Hypothesis, uptime 
 - The WebSocket has no Origin check. It authenticates with a first-message token, not a cookie.
 - Unauthenticated WebSocket connections are not capped. Each waits at most 10 s for the token.
 - No pagination on `GET /endpoints` (capped at 10 per user).
+- Dependencies are not pinned. CI installs the latest versions on every run, so an image rebuilt later can differ from the one that was tested.
 - No performance benchmarks have been run, so none are claimed.
