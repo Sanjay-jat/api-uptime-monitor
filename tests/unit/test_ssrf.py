@@ -232,3 +232,12 @@ async def test_unresolvable_and_private_host_give_same_error(monkeypatch):
     msg_missing = await _error_message(monkeypatch, missing)
     msg_private = await _error_message(monkeypatch, private)
     assert msg_missing == msg_private
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["http://a..b/", "http://" + "a" * 64 + ".com/", "http://127。0。0。1/"],
+)
+async def test_odd_hostnames_are_unsafe_not_crashes(url):
+    with pytest.raises(UnsafeURLError):
+        await validate_public_url(url)
