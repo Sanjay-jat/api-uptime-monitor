@@ -41,7 +41,7 @@ async def validate_public_url(url: str) -> None:
         infos = await asyncio.wait_for(
             loop.getaddrinfo(host, None, type=socket.SOCK_STREAM), timeout=DNS_TIMEOUT
         )
-    except (TimeoutError, socket.gaierror):
+    except (TimeoutError, socket.gaierror, UnicodeError):
         raise UnsafeURLError(HOST_NOT_ALLOWED) from None
     for info in infos:
         addr = info[4][0]
