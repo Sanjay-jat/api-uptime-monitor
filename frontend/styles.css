@@ -22,7 +22,7 @@ ul{list-style:none;padding:0}
 .live[data-s=off]{color:var(--red)}
 body.auth #nav,body.auth .live,body.auth .tabs{display:none}
 .tabs{display:none}
-main.wrap{padding-top:72px;padding-bottom:72px;outline:0;flex:1}
+main.wrap{padding-top:32px;padding-bottom:72px;outline:0;flex:1}
 h1{font-size:clamp(38px,5vw,60px);font-weight:700;letter-spacing:-.04em;line-height:1.02}
 h2{font-size:22px;font-weight:600;letter-spacing:-.02em}
 .sub{color:var(--mute);font-size:18px;margin-top:12px}
@@ -131,7 +131,7 @@ footer.idf{border-top:1px solid var(--line);padding-top:24px;padding-bottom:40px
 .wrap{padding:0 22px}.bar{height:60px}#nav{display:none}
 .tabs{display:grid;grid-template-columns:repeat(3,1fr);position:fixed;bottom:0;left:0;right:0;background:var(--bg);border-top:1px solid var(--ink);z-index:10;padding-bottom:env(safe-area-inset-bottom)}
 .tabs a{text-align:center;padding:20px 0;text-decoration:none;color:var(--mute);font-size:14px}.tabs a[aria-current]{color:var(--ink);font-weight:600}
-main.wrap{padding-top:36px;padding-bottom:40px}
+main.wrap{padding-top:24px;padding-bottom:40px}
 .head{flex-direction:column;margin-bottom:32px}.cta{text-align:left;width:100%}.cta .btn{width:100%}
 .cols{display:none}
 .row{grid-template-columns:1fr 1fr;padding:22px 0;gap:10px 16px}
