@@ -1,5 +1,5 @@
 "use strict";
-const API_URL = "http://localhost:8000"; // backend base URL, change here only
+const API_URL = "https://api-uptime-monitor.onrender.com"; // backend base URL, change here only
 const WS_URL = API_URL.replace(/^http/, "ws") + "/ws/dashboard";
 const MAX_EPS = 10;
 const $ = (s) => document.querySelector(s);
