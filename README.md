@@ -1,5 +1,5 @@
 <div align="center">
-# uptime-monitor
+<h1>uptime-monitor</h1>
  
 **Your API dies at 3 AM. You hear about it from a signed message at 3:03, not from a customer at 9.**
  
@@ -14,9 +14,7 @@ A multi-tenant uptime and incident monitor. Add a URL, pick an interval, and a b
 ![Python](https://img.shields.io/badge/Python_3.11-3776AB?style=flat-square&logo=python&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
- 
 </div>
-> **Heads up:** the demo runs on free tiers. Render puts the backend to sleep after 15 minutes without traffic, so the very first request can take about a minute. A keep-awake pinger is set up, but it is best effort.
  
 ## See it
  
@@ -210,6 +208,7 @@ Rate limits (in memory): register and login 5 per minute per IP, refresh 20 per 
 4. **DNS rebinding window.** The URL is re-checked before each request, but `httpx` resolves the name again when it connects. Pinning the resolved IP in the transport closes it.
 5. **Stateless tokens.** An access token stays valid for up to 15 minutes after logout, and a WebSocket checks its token only when it connects.
 <div align="center">
-Built by [Sanjay Jat](https://github.com/Sanjay-jat) · [Source on GitHub](https://github.com/Sanjay-jat/api-uptime-monitor)
+Built by <a href="https://github.com/Sanjay-jat">Sanjay Jat</a> ·
+<a href="https://github.com/Sanjay-jat/api-uptime-monitor">Source on GitHub</a>
  
 </div>
