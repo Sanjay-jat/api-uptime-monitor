@@ -1,5 +1,5 @@
 <div align="center">
-# Uptime
+# uptime-monitor
  
 **Your API dies at 3 AM. You hear about it from a signed message at 3:03, not from a customer at 9.**
  
@@ -8,7 +8,7 @@ A multi-tenant uptime and incident monitor. Add a URL, pick an interval, and a b
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Open_the_app-111111?style=for-the-badge)](https://api-uptime-monitor-frontend-mu.vercel.app/#/)
  
 ![CI](https://github.com/Sanjay-jat/api-uptime-monitor/actions/workflows/ci.yml/badge.svg)
-![Tests](https://img.shields.io/badge/tests-414_passing-2F4F3F?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-415_passing-2F4F3F?style=flat-square)
 ![Coverage](https://img.shields.io/badge/coverage-99%25-2F4F3F?style=flat-square)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
 ![Python](https://img.shields.io/badge/Python_3.11-3776AB?style=flat-square&logo=python&logoColor=white)
@@ -16,8 +16,6 @@ A multi-tenant uptime and incident monitor. Add a URL, pick an interval, and a b
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
  
 </div>
----
- 
 > **Heads up:** the demo runs on free tiers. Render puts the backend to sleep after 15 minutes without traffic, so the very first request can take about a minute. A keep-awake pinger is set up, but it is best effort.
  
 ## See it
@@ -25,8 +23,6 @@ A multi-tenant uptime and incident monitor. Add a URL, pick an interval, and a b
 | Everything is running | One endpoint, up close | Alerts |
 |:---:|:---:|:---:|
 | ![Home](./screenshots/home.png) | ![Endpoint detail](./screenshots/detail.png) | ![Alerts](./screenshots/alerts.png) |
- 
-The plain English is on purpose: "Everything is running." and "How fast it answered" read better at 3 AM than a wall of charts.
  
 ## One outage, start to finish
  
@@ -71,7 +67,7 @@ All refused. The check runs when you register a URL **and again before every sin
 - **Real downtime, not noise:** 3 consecutive failures flip an endpoint to DOWN. The logic is one pure function, `next_state`, tested without I/O or clocks.
 - **Incidents:** opened once per outage, closed on recovery. A partial unique index makes the database itself refuse a second open incident for the same endpoint.
 - **Signed webhooks:** HMAC-SHA256 over the raw body in `X-Signature: sha256=<hex>`. The secret is shown once when you save the address.
-- **Live dashboard:** WebSocket with a snapshot on connect and an update after every ping, for every open tab of the same user.
+- **Live updates:** WebSocket with a snapshot on connect and an update after every ping, for every open tab of the same user.
 - **History and uptime %:** 24h, 7d and 30d windows from one SQL aggregate. No data returns `null`, not a fake 100%.
 - **Per-endpoint intervals:** 60 seconds to 24 hours, each endpoint on its own clock, with a little upward jitter.
 - **Housekeeping:** a daily job deletes ping rows older than 30 days and expired refresh tokens.
@@ -79,7 +75,7 @@ All refused. The check runs when you register a URL **and again before every sin
  
 ```mermaid
 flowchart LR
-    Browser["Frontend<br/>HTML, CSS, JS"] -->|REST + JWT| API[FastAPI]
+    Browser["Dashboard"] -->|REST + JWT| API[FastAPI]
     Browser <-->|WebSocket| API
     API --> DB[(PostgreSQL)]
     subgraph One["One uvicorn worker"]
@@ -115,9 +111,21 @@ A few decisions worth a sentence each:
 - **WebSocket auth is the first message**, not a query string, so tokens stay out of URLs and logs.
 - **Offset pagination** on history. Simple today, keyset is the upgrade.
 - **httpx's own INFO log is silenced**: it prints full URLs, and URLs can carry secrets in the query string.
+## Measured
+ 
+The history index `(endpoint_id, checked_at)` on `ping_results`, checked with `EXPLAIN ANALYZE` on 1,000,000 synthetic rows (10 endpoints, local Docker, median of 5 runs):
+ 
+| Query | Without index | With index |
+|---|---|---|
+| Uptime, last 24 hours | 15.8 ms | 0.86 ms |
+| Latest 50 pings | 16.6 ms | 0.076 ms |
+| Uptime, last 30 days (an endpoint's whole history) | 19.7 ms | 17.3 ms |
+ 
+The index pays off when a query touches a small slice of the table, and it does nothing when the window covers everything. The last row is there on purpose. Method and raw numbers: [MEASUREMENTS.md](./MEASUREMENTS.md).
+ 
 ## The tests
  
-**414 tests, 99% coverage** (815 statements, 6 missed), and CI fails below 90%.
+**415 tests, 99% coverage** (822 statements, 6 missed). CI fails below 90%.
  
 - **Unit:** the state machine, uptime math, and the SSRF validator (60 tests, including Hypothesis property tests over blocked IP ranges).
 - **Integration:** a real Postgres test database. Auth flow, ownership, endpoint limits, scheduler with mocked HTTP (timeouts, 500s, redirect to a private address), webhooks, WebSockets, rate limits, errors, CORS.
@@ -127,10 +135,11 @@ CI runs two jobs. **check:** lint, migrations on an empty database, tests, cover
  
 ## Bugs that taught me something
  
-- **The green suite that lied.** The dashboard router was never included in `main.py`, and every test still passed, because no test hit the route. Now there is one.
-- **The purge that never ran.** A leftover `___` placeholder raised inside a `try/except`, so the daily cleanup silently never executed. Caught on review, then covered by a test.
+- **The green suite that lied.** The WebSocket router was never included in `main.py`, and every test still passed, because none of them went through the real app. Now they do.
+- **The purge that never ran.** A leftover `___` placeholder raised inside a `try/except`, so the daily cleanup would have silently never executed. Found before it shipped, then covered by a test.
 - **Same signature for every alert.** `sign()` still had a hardcoded key from a tutorial snippet, so every webhook got an identical signature. Fixed and pinned with a test.
 - **"Works on my machine."** `httpx` and `email-validator` were missing from the runtime dependencies. My local environment hid it, the Docker CI job caught it. That job exists because of this bug.
+- **Stale state after an URL edit.** Editing a down endpoint's URL kept its old failure count and open incident, so the new URL could "recover" from an outage it never had. Now a URL change resets the state, closes the incident, and schedules an immediate check.
 ## Run it yourself
  
 <details>
@@ -155,20 +164,9 @@ API docs: http://localhost:8000/docs. The container runs `alembic upgrade head`,
 | `DATABASE_URL` | Postgres URL (asyncpg) |
 | `JWT_SECRET` | Signing key, at least 32 characters, no default |
 | `CORS_ORIGINS` | JSON list of allowed browser origins, exact match, no trailing slash |
+| `PORT` | `8000` |
 | `ACCESS_TOKEN_MINUTES` / `REFRESH_TOKEN_DAYS` | Token lifetimes (15 min / 7 days) |
 | `TEST_DATABASE_URL` | Tests only, optional for the app |
- 
-</details>
-<details>
-<summary><b>Frontend</b></summary>
-Plain HTML, CSS and JS in `frontend/`. No framework, no build step. The backend address is one constant, `API_URL`, at the top of `app.js`.
- 
-```bash
-cd frontend
-python -m http.server 3000
-```
- 
-Make sure `http://localhost:3000` is in `CORS_ORIGINS`.
  
 </details>
 <details>
@@ -201,7 +199,7 @@ Rate limits (in memory): register and login 5 per minute per IP, refresh 20 per 
 |---|---|
 | Backend | Render (Docker, free) |
 | Database | Neon Postgres (free) |
-| Frontend | Vercel (free), served from `frontend/` |
+| Dashboard | Vercel (free) |
 | Keep-awake | A Better Stack monitor pings the backend `/health` |
  
 ## Honest limits
@@ -211,9 +209,6 @@ Rate limits (in memory): register and login 5 per minute per IP, refresh 20 per 
 3. **Alerts are one attempt.** No retry, no cooldown, and the webhook secret sits in the database as plain text.
 4. **DNS rebinding window.** The URL is re-checked before each request, but `httpx` resolves the name again when it connects. Pinning the resolved IP in the transport closes it.
 5. **Stateless tokens.** An access token stays valid for up to 15 minutes after logout, and a WebSocket checks its token only when it connects.
-6. **Frontend is untested by machines.** Manual testing only, and tokens live in `localStorage`.
----
- 
 <div align="center">
 Built by [Sanjay Jat](https://github.com/Sanjay-jat) · [Source on GitHub](https://github.com/Sanjay-jat/api-uptime-monitor)
  
