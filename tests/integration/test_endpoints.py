@@ -4,11 +4,11 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app import cache
-from app.models import Endpoint
+from app.models import Endpoint, Incident
 
 
 @pytest.fixture
@@ -349,3 +349,31 @@ async def test_create_url_with_empty_dns_label_is_422_not_500(client):
     h = await make_user(client, "a@example.com")
     r = await client.post("/endpoints", json={**BODY, "url": "http://a..b/"}, headers=h)
     assert r.status_code == 422
+
+
+async def test_url_change_resets_state_and_closes_incident(client, engine, public_dns):
+    h = await make_user(client, "a@example.com")
+    r = await client.post("/endpoints", json=BODY, headers=h)
+    eid = r.json()["id"]
+
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory() as s:
+        await s.execute(
+            update(Endpoint).where(Endpoint.id == eid).values(status="down", fail_count=3)
+        )
+        s.add(Incident(endpoint_id=eid, opened_at=datetime.now(UTC)))
+        await s.commit()
+
+    r = await client.patch(f"/endpoints/{eid}", json={"url": "https://example.com/new"}, headers=h)
+    assert r.status_code == 200
+
+    async with factory() as s:
+        ep = await s.get(Endpoint, eid)
+        res = await s.execute(
+            select(Incident).where(Incident.endpoint_id == eid, Incident.resolved_at.is_(None))
+        )
+        still_open = res.scalars().all()
+
+    assert ep.status == "up"
+    assert ep.fail_count == 0
+    assert still_open == []
