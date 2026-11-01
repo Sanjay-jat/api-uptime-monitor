@@ -29,6 +29,7 @@ Tests live next to their feature, not copied here.
 - refresh token had no max length  test_refresh_in::test_refresh_token_too_long_rejectedip
 - .env.example secret passed validation  test_config::test_env_example_secret_is_not_usable
 - empty DNS label gave 500  test_endpoints::test_create_url_with_empty_dns_label_is_422_not_500
+- URL change kept old state  test_endpoints::test_url_change_resets_...
 - missing runtime deps         no pytest test. CI docker job catches it (import inside image).
 
 Test below: httpx INFO log leaked the monitored URL query string.
