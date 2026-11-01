@@ -1,14 +1,14 @@
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import cache
 from app.config import get_settings
 from app.deps import CurrentUser, DbSession
 from app.limits import limiter, user_key
-from app.models import Endpoint, User
+from app.models import Endpoint, Incident, User
 from app.schemas import EndpointCreate, EndpointOut, EndpointUpdate
 from app.ssrf import UnsafeURLError, validate_public_url
 
@@ -74,14 +74,25 @@ async def update_endpoint(
             await validate_public_url(body.url)
         except UnsafeURLError as e:
             raise HTTPException(status_code=422, detail=str(e)) from None
+    url_changed = body.url is not None and body.url != ep.url
     for key, value in body.model_dump(exclude_none=True).items():
         setattr(ep, key, value)
     if body.interval_seconds is not None:
         due = datetime.now(UTC) + timedelta(seconds=ep.interval_seconds)
         ep.next_check_at = min(ep.next_check_at, due)
+    if url_changed:
+        now = datetime.now(UTC)
+        ep.fail_count = 0
+        ep.status = "up"
+        ep.next_check_at = now
+        await db.execute(
+            update(Incident)
+            .where(Incident.endpoint_id == ep.id, Incident.resolved_at.is_(None))
+            .values(resolved_at=now)
+        )
     await db.commit()
     await db.refresh(ep)
-    if body.is_active is False:
+    if body.is_active is False or url_changed:
         cache.remove(user.id, endpoint_id)
     return ep
 
